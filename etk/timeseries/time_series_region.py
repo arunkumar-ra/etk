@@ -37,7 +37,7 @@ class TimeSeriesRegion(object):
     def data_to_string(self, data):
         return str(data)
 
-    def parse_global_metadata(self,data, sheet_name):
+    def parse_global_metadata(self, data, sheet_name):
         metadata = {}
         for mdname, mdspec in self.global_metadata.items():
             if mdspec['source'] == 'sheet_name':
@@ -68,13 +68,21 @@ class TimeSeriesRegion(object):
                     for idx in mds[md_name]['loc']:
                         coords = self.orient_coords(tsidx, idx)
                         val = self.data_to_string(data[coords[0]][coords[1]])
+                        # Backfill val if empty
+                        if self.is_blank(val) and mds[md_name]['mode'] == "backfill":
+                            t_idx = tsidx - 1
+                            while t_idx >= 0 and self.is_blank(val):
+                                coords = self.orient_coords(t_idx, idx)
+                                val = self.data_to_string(data[coords[0]][coords[1]])
+                                t_idx -= 1
+
                         md_vals.append(val)
                         if not self.is_blank(val):
                             all_blank = False
                     metadata[md_name] = " ".join(md_vals)
             else:
                 md_modes[mds[md_name]['mode']] = True
-        if all_blank and not md_modes["inline"]:
+        if all_blank and not ("inline" in md_modes) and not len(mds) == 0:
             raise IndexError("All metadata values blank")
         return md_modes
 
